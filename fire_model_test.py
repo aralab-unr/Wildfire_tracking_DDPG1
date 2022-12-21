@@ -119,7 +119,11 @@ class FireEnvironment(gym.Env):
         #print("states: ",self.state())
         for drone, action in enumerate(action_list):
             self.move_drone(drone, action)
-            temp = cv2.circle(temp, (round(self.agents[drone].pos[1]), round(self.agents[drone].pos[0])), 1, color, thickness)
+            fov_alt = round(np.tan(self.theta) * self.agents[drone].pos[2])
+            start_point = (round(self.agents[drone].pos[0])-fov_alt, round(self.agents[drone].pos[1])-fov_alt)
+            end_point = (round(self.agents[drone].pos[0])+fov_alt, round(self.agents[drone].pos[1])+fov_alt)
+            temp = cv2.rectangle(temp, start_point, end_point, (0, 1, 1), -1)
+            temp = cv2.circle(temp, (round(self.agents[drone].pos[0]), round(self.agents[drone].pos[1])), 0, color, thickness)
 
         observation = self.state()
         reward = self.reward()
@@ -155,7 +159,7 @@ class FireEnvironment(gym.Env):
             x, y, z = drone.pos
 
             for xc, yc in zip(coordsx.flatten(), coordsy.flatten()):
-                x_proj = y_proj = np.tan(drone.fov) * z
+                x_proj = y_proj = round(np.tan(drone.fov) * z)
                 if all([
                     xc > x - x_proj,
                     xc < x + x_proj,
@@ -192,15 +196,17 @@ class FireEnvironment(gym.Env):
 
     def render(self):
         temp_img = self.map.copy()
-        color = (255, 0, 0)
-        thickness = -1
         temp = cv2.cvtColor(temp_img, cv2.COLOR_GRAY2BGR)
         for drone in range(len(self.agents)):
-            temp = cv2.circle(temp, (round(self.agents[drone].pos[0]), round(self.agents[drone].pos[1])), 1, color, thickness)
+            fov_alt = round(np.tan(self.theta) * self.agents[drone].pos[2])
+            start_point = (round(self.agents[drone].pos[0])-fov_alt, round(self.agents[drone].pos[1])-fov_alt)
+            end_point = (round(self.agents[drone].pos[0])+fov_alt, round(self.agents[drone].pos[1])+fov_alt)
+            temp = cv2.rectangle(temp, start_point, end_point, (0, 1, 1), -1)
+            temp = cv2.circle(temp, (round(self.agents[drone].pos[0]), round(self.agents[drone].pos[1])), 0, (255, 0, 0), -1)
 
         temp = cv2.resize(temp, (220,220), interpolation = cv2.INTER_AREA)
         cv2.imshow("filled", temp)
-        cv2.waitKey(1)
+        cv2.waitKey(0)
 
 
     def print(self, file):
@@ -219,29 +225,3 @@ class FireEnvironment(gym.Env):
             #print(i, x, y, z, x_proj, y_proj)
             f.write(str(str(i) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(x_proj) + " " + str(y_proj)) + "\n")
         f.close()
-
-
-def main():
-    n_drones = 3
-    dim_x = 15
-    dim_y = 15
-    dim_z = 3
-    agents_theta_degrees = 30
-    X_MAX = 14
-    X_MIN = 0
-    Y_MAX = 14
-    Y_MIN = 0
-    Z_MAX = 4
-    Z_MIN = 0     # z min = 1
-
-    env = FireEnvironment("fbndry4.txt", dim_x, dim_y, [dim_x, dim_y, dim_z], agents_theta_degrees, n_drones, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX)
-    for i in range(200):
-        env.grid = env.simStep(i)
-        env.map = env.grid
-        env.render()
-        env.print(("sim.txt"))
-    print(env.observation_space.shape)
-    print(env.action_space.shape)
-
-if __name__ == "__main__":
-    main()
